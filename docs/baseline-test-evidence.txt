@@ -1,0 +1,36 @@
+Java 21 Maven verification summary (selected non-secret log lines)
+
+[INFO] Compiling 8 source files with javac [debug parameters release 21] to target/classes
+[INFO] Compiling 3 source files with javac [debug parameters release 21] to target/test-classes
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.907 s -- in dev.ajay.bank.common.OutboxRelayTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.031 s -- in dev.ajay.bank.common.MoneyRulesTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.165 s -- in dev.ajay.bank.common.JwtValidationTest
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Compiling 3 source files with javac [debug parameters release 21] to target/classes
+[INFO] Compiling 4 source files with javac [debug parameters release 21] to target/classes
+[INFO] Compiling 2 source files with javac [debug parameters release 21] to target/test-classes
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.427 s -- in dev.ajay.bank.payment.PaymentWorkerTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Compiling 5 source files with javac [debug parameters release 21] to target/classes
+[INFO] Compiling 5 source files with javac [debug parameters release 21] to target/classes
+[INFO] Compiling 1 source file with javac [debug parameters release 21] to target/test-classes
+[INFO] Compiling 2 source files with javac [debug parameters release 21] to target/classes
+[INFO] Compiling 4 source files with javac [debug parameters release 21] to target/classes
+[INFO] Compiling 1 source file with javac [debug parameters release 21] to target/test-classes
+[INFO] banking-platform ................................... SUCCESS [ 15.636 s]
+[INFO] common ............................................. SUCCESS [  3.397 s]
+[INFO] gateway-service .................................... SUCCESS [  0.697 s]
+[INFO] payment-service .................................... SUCCESS [  2.637 s]
+[INFO] account-service .................................... SUCCESS [  0.291 s]
+[INFO] ledger-service ..................................... SUCCESS [  0.718 s]
+[INFO] fraud-service ...................................... SUCCESS [  0.280 s]
+[INFO] notification-service ............................... SUCCESS [  0.570 s]
+[INFO] BUILD SUCCESS
+
+PASS migrations: account
+PASS migrations: fraud
+PASS migrations: payment
+PASS migrations: notification
+PASS migrations: ledger
+PASS journal balance, immutability, reserved-funds constraint, seed totals
+12 SQL checks passed using PGlite (not a concurrency or full-stack test).

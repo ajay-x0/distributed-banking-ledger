@@ -1,0 +1,58 @@
+# Shared profile discovered from common.jar when SPRING_PROFILES_ACTIVE=lite.
+# Normal service transaction and authorization logic is unchanged.
+server:
+  tomcat:
+    threads:
+      max: 12
+      min-spare: 1
+    max-connections: 64
+    accept-count: 20
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 3
+      minimum-idle: 0
+      idle-timeout: 30000
+      connection-timeout: 5000
+  task:
+    execution:
+      pool:
+        core-size: 1
+        max-size: 2
+        queue-capacity: 32
+    scheduling:
+      pool:
+        size: 2
+  kafka:
+    producer:
+      properties:
+        buffer.memory: 1048576
+        batch.size: 16384
+    consumer:
+      max-poll-records: 20
+      properties:
+        fetch.max.bytes: 1048576
+        max.partition.fetch.bytes: 262144
+    listener:
+      concurrency: 1
+      observation-enabled: false
+    template:
+      observation-enabled: false
+management:
+  tracing:
+    enabled: false
+  prometheus:
+    metrics:
+      export:
+        enabled: false
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: false
+bank:
+  worker-delay: 750
+  relay-delay: 1500

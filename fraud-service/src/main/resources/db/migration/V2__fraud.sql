@@ -1,0 +1,1 @@
+CREATE TABLE fraud_decision(payment_id uuid PRIMARY KEY,owner varchar(100) NOT NULL,amount_minor bigint NOT NULL,approved boolean NOT NULL,reason varchar(100) NOT NULL,created_at timestamptz NOT NULL DEFAULT now());

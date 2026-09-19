@@ -1,0 +1,5 @@
+spring:
+  application:
+    name: payment-service
+  config:
+    import: classpath:bank-common.yml

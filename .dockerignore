@@ -1,0 +1,7 @@
+**/target
+.git
+.env
+*.zip
+*.log
+__pycache__
+infra

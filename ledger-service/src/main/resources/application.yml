@@ -1,0 +1,5 @@
+spring:
+  application:
+    name: ledger-service
+  config:
+    import: classpath:bank-common.yml

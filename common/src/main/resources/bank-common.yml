@@ -1,0 +1,86 @@
+server:
+  port: 8080
+  shutdown: graceful
+spring:
+  task:
+    scheduling:
+      pool:
+        size: 3
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/bank}
+    username: ${DB_USER:bank}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 10
+      connection-timeout: 3000
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    locations: classpath:db/common,classpath:db/migration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      timeout: 1s
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      properties:
+        enable.idempotence: true
+        delivery.timeout.ms: 10000
+        request.timeout.ms: 3000
+        max.block.ms: 3000
+    consumer:
+      group-id: ${spring.application.name}
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    listener:
+      ack-mode: record
+      observation-enabled: true
+    template:
+      observation-enabled: true
+management:
+  server:
+    port: 9090
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,db
+  tracing:
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      endpoint: ${OTEL_ENDPOINT:http://localhost:4318/v1/traces}
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+    tags:
+      application: ${spring.application.name}
+logging:
+  pattern:
+    correlation: '[${spring.application.name:},%X{traceId:-},%X{spanId:-}] '
+bank:
+  jwt-secret: ${JWT_SECRET}
+  service-password: ${SERVICE_PASSWORD}
+  outbox-enabled: ${OUTBOX_ENABLED:false}
+  workers-enabled: ${WORKERS_ENABLED:true}
+  ledger-url: ${LEDGER_URL:http://localhost:8083}
+  fraud-url: ${FRAUD_URL:http://localhost:8084}
+  account-url: ${ACCOUNT_URL:http://localhost:8082}
+  payment-url: ${PAYMENT_URL:http://localhost:8081}
+  notification-url: ${NOTIFICATION_URL:http://localhost:8085}

@@ -1,0 +1,64 @@
+Lite validation: workflow tests use mocks; no application containers were run.
+
+test_build_failure_prevents_partial_start (test_lite.LiteWorkflowTest.test_build_failure_prevents_partial_start) ... Stopping this lightweight stack before build/start; preserving its data.
+Building all Java modules sequentially in the 768 MiB builder.
+ok
+test_build_finishes_before_any_service_starts (test_lite.LiteWorkflowTest.test_build_finishes_before_any_service_starts) ... Stopping this lightweight stack before build/start; preserving its data.
+Building all Java modules sequentially in the 768 MiB builder.
+Packaging image: account
+Packaging image: ledger
+Packaging image: fraud
+Packaging image: notification
+Packaging image: payment
+Packaging image: gateway
+Starting one container at a time; each must pass its readiness check.
+Starting postgres...
+Starting redis...
+Starting kafka...
+Starting account...
+Starting ledger...
+Starting fraud...
+Starting notification...
+Starting payment...
+Starting gateway...
+Ready at http://localhost:8080. This is an API, not a website.
+Next: py scripts/lite.py test
+Memory: py scripts/lite.py stats
+ok
+test_compose_is_scoped_to_lite_project (test_lite.LiteWorkflowTest.test_compose_is_scoped_to_lite_project) ... ok
+test_diagnostic_report_uses_only_selected_inspect_fields (test_lite.LiteWorkflowTest.test_diagnostic_report_uses_only_selected_inspect_fields) ... ok
+test_readiness_failure_prevents_starting_dependents (test_lite.LiteWorkflowTest.test_readiness_failure_prevents_starting_dependents) ... Saved lite-diagnostics.txt; it contains status, memory and restart/OOM data, not credentials.
+Stopping this lightweight stack before build/start; preserving its data.
+Starting one container at a time; each must pass its readiness check.
+Starting postgres...
+ok
+test_skip_build_still_uses_staged_startup (test_lite.LiteWorkflowTest.test_skip_build_still_uses_staged_startup) ... Stopping this lightweight stack before build/start; preserving its data.
+Starting one container at a time; each must pass its readiness check.
+Starting postgres...
+Starting redis...
+Starting kafka...
+Starting account...
+Starting ledger...
+Starting fraud...
+Starting notification...
+Starting payment...
+Starting gateway...
+Ready at http://localhost:8080. This is an API, not a website.
+Next: py scripts/lite.py test
+Memory: py scripts/lite.py stats
+ok
+test_stats_does_not_collect_other_projects (test_lite.LiteWorkflowTest.test_stats_does_not_collect_other_projects) ... ok
+test_windows_container_engine_rejected (test_lite.LiteWorkflowTest.test_windows_container_engine_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.003s
+
+OK
+No lightweight containers are running.
+
+37 structured files parsed successfully
+All 37 business Java and SQL files identical to original
+Base container cap: 3248 MiB; builder cap: 768m
+Compose resource, path, profile, and service invariants passed (not native Compose validation).
+
+Health probe: HTTP 200 -> exit 0; HTTP 503 -> exit 1 (local test HTTP server).

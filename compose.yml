@@ -1,0 +1,434 @@
+name: banking-ledger-lite
+services:
+  postgres:
+    image: postgres:17.11
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      DB_PASSWORD: ${DB_PASSWORD}
+    volumes:
+    - pgdata:/var/lib/postgresql/data
+    - ./infra/postgres/init.sh:/docker-entrypoint-initdb.d/01-databases.sh:ro
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U postgres
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+    - bank
+    mem_limit: 256m
+    command:
+    - postgres
+    - -c
+    - shared_buffers=32MB
+    - -c
+    - work_mem=1MB
+    - -c
+    - maintenance_work_mem=16MB
+    - -c
+    - max_connections=30
+    - -c
+    - max_parallel_workers_per_gather=0
+    - -c
+    - max_worker_processes=4
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: '2'
+  redis:
+    image: redis:7.4.2-alpine
+    command:
+    - redis-server
+    - --appendonly
+    - 'yes'
+    - --maxmemory
+    - 16mb
+    - --maxmemory-policy
+    - noeviction
+    volumes:
+    - redisdata:/data
+    healthcheck:
+      test:
+      - CMD
+      - redis-cli
+      - ping
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+    - bank
+    mem_limit: 48m
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: '2'
+  kafka:
+    image: apache/kafka:3.9.1
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
+      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+      KAFKA_HEAP_OPTS: -Xms128m -Xmx256m
+      KAFKA_JVM_PERFORMANCE_OPTS: -server -XX:+UseSerialGC -XX:ActiveProcessorCount=2
+      KAFKA_NUM_NETWORK_THREADS: 2
+      KAFKA_NUM_IO_THREADS: 2
+      KAFKA_BACKGROUND_THREADS: 2
+      KAFKA_NUM_RECOVERY_THREADS_PER_DATA_DIR: 1
+      KAFKA_NUM_PARTITIONS: 3
+    volumes:
+    - kafkadata:/tmp/kraft-combined-logs
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - KAFKA_HEAP_OPTS='-Xms16m -Xmx64m' KAFKA_JVM_PERFORMANCE_OPTS='-XX:+UseSerialGC
+        -XX:ActiveProcessorCount=1' /opt/kafka/bin/kafka-topics.sh --bootstrap-server
+        localhost:9092 --list >/dev/null 2>&1
+      interval: 30s
+      timeout: 20s
+      start_period: 60s
+      retries: 8
+    networks:
+    - bank
+    mem_limit: 640m
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: '2'
+  gateway:
+    restart: unless-stopped
+    mem_limit: 384m
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+    - bank
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: gateway
+    environment:
+      DB_PASSWORD: ${DB_PASSWORD:?Run python3 scripts/init_env.py}
+      JWT_SECRET: ${JWT_SECRET:?Run python3 scripts/init_env.py}
+      SERVICE_PASSWORD: ${SERVICE_PASSWORD:?Run python3 scripts/init_env.py}
+      REDIS_HOST: redis
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      PAYMENT_URL: http://payment:8080
+      ACCOUNT_URL: http://account:8080
+      LEDGER_URL: http://ledger:8080
+      FRAUD_URL: http://fraud:8080
+      NOTIFICATION_URL: http://notification:8080
+      DB_URL: jdbc:postgresql://postgres:5432/bank_gateway
+      DB_USER: bank_gateway
+      OUTBOX_ENABLED: 'false'
+      SPRING_PROFILES_ACTIVE: lite
+      JAVA_TOOL_OPTIONS: -Xms32m -Xmx128m -XX:+UseSerialGC -XX:ReservedCodeCacheSize=32m
+        -XX:MaxDirectMemorySize=24m -Xss512k -XX:ActiveProcessorCount=2 -XX:+ExitOnOutOfMemoryError
+    ports:
+    - 127.0.0.1:8080:8080
+    image: banking-ledger-lite/gateway:local
+    stop_grace_period: 45s
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: '2'
+    healthcheck:
+      test:
+      - CMD
+      - bash
+      - /app/healthcheck.sh
+      interval: 15s
+      timeout: 5s
+      start_period: 90s
+      retries: 12
+  payment:
+    restart: unless-stopped
+    mem_limit: 384m
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+    - bank
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: payment
+    environment:
+      DB_PASSWORD: ${DB_PASSWORD:?Run python3 scripts/init_env.py}
+      JWT_SECRET: ${JWT_SECRET:?Run python3 scripts/init_env.py}
+      SERVICE_PASSWORD: ${SERVICE_PASSWORD:?Run python3 scripts/init_env.py}
+      REDIS_HOST: redis
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      PAYMENT_URL: http://payment:8080
+      ACCOUNT_URL: http://account:8080
+      LEDGER_URL: http://ledger:8080
+      FRAUD_URL: http://fraud:8080
+      NOTIFICATION_URL: http://notification:8080
+      DB_URL: jdbc:postgresql://postgres:5432/bank_payment
+      DB_USER: bank_payment
+      OUTBOX_ENABLED: 'true'
+      SPRING_PROFILES_ACTIVE: lite
+      JAVA_TOOL_OPTIONS: -Xms32m -Xmx128m -XX:+UseSerialGC -XX:ReservedCodeCacheSize=32m
+        -XX:MaxDirectMemorySize=24m -Xss512k -XX:ActiveProcessorCount=2 -XX:+ExitOnOutOfMemoryError
+    image: banking-ledger-lite/payment:local
+    stop_grace_period: 45s
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: '2'
+    healthcheck:
+      test:
+      - CMD
+      - bash
+      - /app/healthcheck.sh
+      interval: 15s
+      timeout: 5s
+      start_period: 90s
+      retries: 12
+  account:
+    restart: unless-stopped
+    mem_limit: 384m
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+    - bank
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: account
+    environment:
+      DB_PASSWORD: ${DB_PASSWORD:?Run python3 scripts/init_env.py}
+      JWT_SECRET: ${JWT_SECRET:?Run python3 scripts/init_env.py}
+      SERVICE_PASSWORD: ${SERVICE_PASSWORD:?Run python3 scripts/init_env.py}
+      REDIS_HOST: redis
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      PAYMENT_URL: http://payment:8080
+      ACCOUNT_URL: http://account:8080
+      LEDGER_URL: http://ledger:8080
+      FRAUD_URL: http://fraud:8080
+      NOTIFICATION_URL: http://notification:8080
+      DB_URL: jdbc:postgresql://postgres:5432/bank_account
+      DB_USER: bank_account
+      OUTBOX_ENABLED: 'false'
+      SPRING_PROFILES_ACTIVE: lite
+      JAVA_TOOL_OPTIONS: -Xms32m -Xmx128m -XX:+UseSerialGC -XX:ReservedCodeCacheSize=32m
+        -XX:MaxDirectMemorySize=24m -Xss512k -XX:ActiveProcessorCount=2 -XX:+ExitOnOutOfMemoryError
+    image: banking-ledger-lite/account:local
+    stop_grace_period: 45s
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: '2'
+    healthcheck:
+      test:
+      - CMD
+      - bash
+      - /app/healthcheck.sh
+      interval: 15s
+      timeout: 5s
+      start_period: 90s
+      retries: 12
+  ledger:
+    restart: unless-stopped
+    mem_limit: 384m
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+    - bank
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: ledger
+    environment:
+      DB_PASSWORD: ${DB_PASSWORD:?Run python3 scripts/init_env.py}
+      JWT_SECRET: ${JWT_SECRET:?Run python3 scripts/init_env.py}
+      SERVICE_PASSWORD: ${SERVICE_PASSWORD:?Run python3 scripts/init_env.py}
+      REDIS_HOST: redis
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      PAYMENT_URL: http://payment:8080
+      ACCOUNT_URL: http://account:8080
+      LEDGER_URL: http://ledger:8080
+      FRAUD_URL: http://fraud:8080
+      NOTIFICATION_URL: http://notification:8080
+      DB_URL: jdbc:postgresql://postgres:5432/bank_ledger
+      DB_USER: bank_ledger
+      OUTBOX_ENABLED: 'true'
+      SPRING_PROFILES_ACTIVE: lite
+      JAVA_TOOL_OPTIONS: -Xms32m -Xmx128m -XX:+UseSerialGC -XX:ReservedCodeCacheSize=32m
+        -XX:MaxDirectMemorySize=24m -Xss512k -XX:ActiveProcessorCount=2 -XX:+ExitOnOutOfMemoryError
+    image: banking-ledger-lite/ledger:local
+    stop_grace_period: 45s
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: '2'
+    healthcheck:
+      test:
+      - CMD
+      - bash
+      - /app/healthcheck.sh
+      interval: 15s
+      timeout: 5s
+      start_period: 90s
+      retries: 12
+  fraud:
+    restart: unless-stopped
+    mem_limit: 384m
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+    - bank
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: fraud
+    environment:
+      DB_PASSWORD: ${DB_PASSWORD:?Run python3 scripts/init_env.py}
+      JWT_SECRET: ${JWT_SECRET:?Run python3 scripts/init_env.py}
+      SERVICE_PASSWORD: ${SERVICE_PASSWORD:?Run python3 scripts/init_env.py}
+      REDIS_HOST: redis
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      PAYMENT_URL: http://payment:8080
+      ACCOUNT_URL: http://account:8080
+      LEDGER_URL: http://ledger:8080
+      FRAUD_URL: http://fraud:8080
+      NOTIFICATION_URL: http://notification:8080
+      DB_URL: jdbc:postgresql://postgres:5432/bank_fraud
+      DB_USER: bank_fraud
+      OUTBOX_ENABLED: 'false'
+      SPRING_PROFILES_ACTIVE: lite
+      JAVA_TOOL_OPTIONS: -Xms32m -Xmx128m -XX:+UseSerialGC -XX:ReservedCodeCacheSize=32m
+        -XX:MaxDirectMemorySize=24m -Xss512k -XX:ActiveProcessorCount=2 -XX:+ExitOnOutOfMemoryError
+    image: banking-ledger-lite/fraud:local
+    stop_grace_period: 45s
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: '2'
+    healthcheck:
+      test:
+      - CMD
+      - bash
+      - /app/healthcheck.sh
+      interval: 15s
+      timeout: 5s
+      start_period: 90s
+      retries: 12
+  notification:
+    restart: unless-stopped
+    mem_limit: 384m
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+    - bank
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: notification
+    environment:
+      DB_PASSWORD: ${DB_PASSWORD:?Run python3 scripts/init_env.py}
+      JWT_SECRET: ${JWT_SECRET:?Run python3 scripts/init_env.py}
+      SERVICE_PASSWORD: ${SERVICE_PASSWORD:?Run python3 scripts/init_env.py}
+      REDIS_HOST: redis
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      PAYMENT_URL: http://payment:8080
+      ACCOUNT_URL: http://account:8080
+      LEDGER_URL: http://ledger:8080
+      FRAUD_URL: http://fraud:8080
+      NOTIFICATION_URL: http://notification:8080
+      DB_URL: jdbc:postgresql://postgres:5432/bank_notification
+      DB_USER: bank_notification
+      OUTBOX_ENABLED: 'false'
+      SPRING_PROFILES_ACTIVE: lite
+      JAVA_TOOL_OPTIONS: -Xms32m -Xmx128m -XX:+UseSerialGC -XX:ReservedCodeCacheSize=32m
+        -XX:MaxDirectMemorySize=24m -Xss512k -XX:ActiveProcessorCount=2 -XX:+ExitOnOutOfMemoryError
+    image: banking-ledger-lite/notification:local
+    stop_grace_period: 45s
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: '2'
+    healthcheck:
+      test:
+      - CMD
+      - bash
+      - /app/healthcheck.sh
+      interval: 15s
+      timeout: 5s
+      start_period: 90s
+      retries: 12
+  builder:
+    image: maven:3.9.9-eclipse-temurin-21
+    profiles:
+    - build
+    working_dir: /workspace
+    mem_limit: 768m
+    environment:
+      MAVEN_OPTS: -Xms64m -Xmx384m -XX:+UseSerialGC -XX:ActiveProcessorCount=2
+    volumes:
+    - .:/workspace
+    - maven-cache:/root/.m2
+    entrypoint:
+    - bash
+    command:
+    - scripts/build-jars.sh
+volumes:
+  pgdata: null
+  redisdata: null
+  kafkadata: null
+  maven-cache: null
+networks:
+  bank: null

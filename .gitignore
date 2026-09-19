@@ -1,0 +1,11 @@
+**/target/
+.env
+*.log
+infra/aws/.terraform/
+*.tfstate*
+*.tfvars
+infra/k8s/rendered/
+__pycache__/
+
+build/
+lite-diagnostics.txt
