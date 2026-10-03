@@ -7,7 +7,8 @@
 - Bash syntax checks passed for the build script, PostgreSQL initializer and application health probe.
 - The health probe was executed against a local test HTTP server: status 200 returned success; status 503 returned failure. This is not a Spring application startup test.
 - Python, YAML, JSON and Maven XML parsing and resource/configuration invariants were checked.
-- Java business source and database migrations were compared with the original archive to confirm they were unchanged.
+- Core Payment, Account, Ledger, Fraud, and Notification business logic and database migrations were compared with the original archive to confirm they were unchanged. Gateway security and demo-authentication code changed later to support the local simulator.
+- After the transaction simulator was added, its JavaScript passed `node --check`, the HTML structure and DOM references were checked, Compose parsed as ten runtime services, the Python workflow suite passed, and a mock integration server verified the read-only UI smoke script. A live ten-container Docker run is still required on the target laptop.
 
 ## Executed on the target Windows laptop
 
@@ -25,7 +26,7 @@ On 19 September 2026, the owner ran the lite stack on Windows with 8 GB installe
 - The real PostgreSQL Testcontainers integration suite has not been reported from the target laptop.
 - Sustained load, latency percentiles, throughput, long-running stability, forced process-crash recovery, disk exhaustion, and restart-after-host-reboot tests have not been measured on the 8 GB laptop.
 
-The 3.17 GiB figure remains a sum of configured container limits. The separate 2.25 GiB reading is a single post-smoke-test measurement and should not be presented as a peak or production capacity result.
+The original 3.17 GiB figure is the sum of the nine backend container limits. The Nginx transaction simulator later added a 64 MiB limit, making the current ten-container sum 3.23 GiB. The separate 2.25 GiB reading is a single backend post-smoke-test measurement and should not be presented as a UI-inclusive measurement, a peak, or a production capacity result.
 
 ## Baseline evidence
 

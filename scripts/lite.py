@@ -11,8 +11,9 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 PROJECT = 'banking-ledger-lite'
 INFRA = ('postgres', 'redis', 'kafka')
-APPS = ('account', 'ledger', 'fraud', 'notification', 'payment', 'gateway')
-ALL_SERVICES = INFRA + APPS
+JAVA_APPS = ('account', 'ledger', 'fraud', 'notification', 'payment', 'gateway')
+WEB_APPS = ('ui',)
+ALL_SERVICES = INFRA + JAVA_APPS + WEB_APPS
 
 
 def run(arguments, capture=False):
@@ -35,7 +36,7 @@ def check_docker():
         raise RuntimeError('Switch Docker Desktop to Linux containers (WSL 2).')
     memory = info.get('MemTotal', 0) / 1024**3
     print(f'Docker VM memory: {memory:.2f} GiB', flush=True)
-    print('Base container limits total 3.17 GiB; VM overhead and Windows need additional RAM.', flush=True)
+    print('Base container limits total 3.23 GiB; VM overhead and Windows need additional RAM.', flush=True)
     if memory < 3.5:
         print('Docker has less than 3.5 GiB available to its VM. Startup may run out of memory. '
               'Check Docker/WSL memory settings; close IntelliJ and other heavy apps.', flush=True)
@@ -69,15 +70,17 @@ def start(skip_build=False):
     if not skip_build:
         print('Building all Java modules sequentially in the 768 MiB builder.', flush=True)
         compose('--profile', 'build', 'run', '--rm', '--no-deps', 'builder')
-        for service in APPS:
+        for service in JAVA_APPS:
             print(f'Packaging image: {service}', flush=True)
             compose('build', service)
+        print('Packaging image: ui', flush=True)
+        compose('build', 'ui')
     print('Starting one container at a time; each must pass its readiness check.', flush=True)
     for service in ALL_SERVICES:
         print(f'Starting {service}...', flush=True)
         compose('up', '-d', '--no-build', '--no-deps', '--wait', '--wait-timeout', '240', service)
     compose('ps')
-    print('Ready at http://localhost:8080. This is an API, not a website.\n'
+    print('API ready at http://localhost:8080. Transaction simulator ready at http://localhost:3000.\n'
           'Next: py scripts/lite.py test\n'
           'Memory: py scripts/lite.py stats', flush=True)
 
@@ -139,6 +142,7 @@ def main():
                 report()
             elif args.action == 'test':
                 run([sys.executable, str(ROOT / 'scripts/smoke.py'), '--wait', '600'])
+                run([sys.executable, str(ROOT / 'scripts/ui_smoke.py')])
             elif args.action == 'logs':
                 compose('logs', '--tail', '100', *([args.service] if args.service else []))
     except (RuntimeError, OSError, subprocess.CalledProcessError, ValueError) as error:

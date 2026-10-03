@@ -84,3 +84,4 @@ bank:
   account-url: ${ACCOUNT_URL:http://localhost:8082}
   payment-url: ${PAYMENT_URL:http://localhost:8081}
   notification-url: ${NOTIFICATION_URL:http://localhost:8085}
+  demo-auth-enabled: ${DEMO_AUTH_ENABLED:false}

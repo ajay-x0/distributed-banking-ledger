@@ -139,6 +139,7 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/bank_gateway
       DB_USER: bank_gateway
       OUTBOX_ENABLED: 'false'
+      DEMO_AUTH_ENABLED: 'true'
       SPRING_PROFILES_ACTIVE: lite
       JAVA_TOOL_OPTIONS: -Xms32m -Xmx128m -XX:+UseSerialGC -XX:ReservedCodeCacheSize=32m
         -XX:MaxDirectMemorySize=24m -Xss512k -XX:ActiveProcessorCount=2 -XX:+ExitOnOutOfMemoryError
@@ -160,6 +161,37 @@ services:
       timeout: 5s
       start_period: 90s
       retries: 12
+  ui:
+    restart: unless-stopped
+    mem_limit: 64m
+    depends_on:
+      gateway:
+        condition: service_healthy
+    networks:
+    - bank
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+    - 127.0.0.1:3000:80
+    image: banking-ledger-lite/ui:local
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: '2'
+    healthcheck:
+      test:
+      - CMD
+      - wget
+      - -q
+      - -O
+      - /dev/null
+      - http://127.0.0.1/health
+      interval: 15s
+      timeout: 3s
+      start_period: 10s
+      retries: 8
   payment:
     restart: unless-stopped
     mem_limit: 384m

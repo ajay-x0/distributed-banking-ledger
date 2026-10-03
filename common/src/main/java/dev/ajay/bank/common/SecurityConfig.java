@@ -29,6 +29,6 @@ public class SecurityConfig {
   return http.securityMatcher("/internal/**").csrf(c->c.disable()).sessionManagement(s->s.sessionCreationPolicy(SessionCreationPolicy.STATELESS)).authorizeHttpRequests(a->a.anyRequest().hasRole("INTERNAL")).httpBasic(Customizer.withDefaults()).build();
  }
  @Bean @Order(2) SecurityFilterChain publicApi(HttpSecurity http) throws Exception {
-  return http.csrf(c->c.disable()).sessionManagement(s->s.sessionCreationPolicy(SessionCreationPolicy.STATELESS)).authorizeHttpRequests(a->a.requestMatchers("/actuator/health/**","/actuator/prometheus","/actuator/info").permitAll().requestMatchers("/api/admin/**").hasAuthority("SCOPE_admin").anyRequest().authenticated()).oauth2ResourceServer(o->o.jwt(Customizer.withDefaults())).build();
+  return http.csrf(c->c.disable()).sessionManagement(s->s.sessionCreationPolicy(SessionCreationPolicy.STATELESS)).authorizeHttpRequests(a->a.requestMatchers("/actuator/health/**","/actuator/prometheus","/actuator/info","/demo/token/**").permitAll().requestMatchers("/api/admin/**").hasAuthority("SCOPE_admin").anyRequest().authenticated()).oauth2ResourceServer(o->o.jwt(Customizer.withDefaults())).build();
  }
 }

@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Interactive transaction simulator for Distributed Banking Ledger Lite">
+  <title>Banking Ledger · Transaction Simulator</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#top" aria-label="Banking Ledger home">
+      <span class="brand-mark">BL</span>
+      <span><strong>Banking Ledger</strong><small>Transaction Simulator</small></span>
+    </a>
+    <div class="runtime"><span class="status-dot" id="statusDot"></span><span id="runtimeStatus">Connecting…</span></div>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Distributed systems, made visible</p>
+        <h1>Follow a transfer from request to ledger.</h1>
+        <p class="hero-copy">Change the identity, accounts, amount, or idempotency key. The simulator shows the API response, saga state, balances, and eventual Kafka projection without bypassing the Gateway.</p>
+      </div>
+      <div class="identity-card">
+        <label for="identity">Act as</label>
+        <select id="identity">
+          <option value="alice">Alice · payments</option>
+          <option value="bob">Bob · payments</option>
+          <option value="charlie">Charlie · payments</option>
+          <option value="admin">Administrator · admin</option>
+        </select>
+        <div class="identity-meta"><span id="identityScope">payments scope</span><span>15-minute demo token</span></div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="balancesTitle">
+      <div class="section-heading">
+        <div><p class="eyebrow">Current state</p><h2 id="balancesTitle">Demo accounts</h2></div>
+        <button class="button secondary" id="refreshBalances" type="button">Refresh balances</button>
+      </div>
+      <p class="section-note">Observation mode reads each account using its own demo identity. Transfer authorization still uses the identity selected above.</p>
+      <div class="balance-grid" id="balanceGrid" aria-live="polite"></div>
+    </section>
+
+    <section class="workspace">
+      <section class="panel transfer-panel" aria-labelledby="transferTitle">
+        <div class="panel-heading">
+          <div><p class="eyebrow">Create a command</p><h2 id="transferTitle">New transfer</h2></div>
+          <button class="icon-button" id="newKey" type="button" title="Generate a new idempotency key" aria-label="Generate new idempotency key">↻</button>
+        </div>
+
+        <div class="scenario-row" aria-label="Scenario presets">
+          <button class="scenario active" data-scenario="success" type="button">Successful</button>
+          <button class="scenario" data-scenario="fraud" type="button">Fraud decline</button>
+          <button class="scenario" data-scenario="insufficient" type="button">Insufficient funds</button>
+          <button class="scenario" data-scenario="invalid" type="button">Invalid input</button>
+        </div>
+
+        <form id="transferForm">
+          <div class="field-grid">
+            <label>Source account<select id="source" required></select></label>
+            <label>Destination account<select id="destination" required></select></label>
+          </div>
+          <div class="field-grid">
+            <label>Amount in rupees
+              <div class="money-input"><span>₹</span><input id="amount" inputmode="decimal" value="10000.00" required aria-describedby="minorPreview"></div>
+              <small id="minorPreview">1,000,000 paise</small>
+            </label>
+            <label>Currency<input id="currency" value="INR" maxlength="3" required></label>
+          </div>
+          <label>Idempotency key<input id="idempotencyKey" maxlength="100" required></label>
+          <div class="form-actions">
+            <button class="button primary" id="submitTransfer" type="submit">Submit transfer</button>
+            <button class="button secondary" id="repeatTransfer" type="button" disabled>Repeat same request</button>
+            <button class="button ghost" id="conflictTransfer" type="button" disabled>Test key conflict</button>
+          </div>
+          <p class="form-message" id="formMessage" role="status"></p>
+        </form>
+      </section>
+
+      <section class="panel result-panel" aria-labelledby="resultTitle">
+        <div class="panel-heading">
+          <div><p class="eyebrow">Live execution</p><h2 id="resultTitle">Payment result</h2></div>
+          <span class="state-badge neutral" id="paymentState">NOT STARTED</span>
+        </div>
+        <div class="empty-result" id="emptyResult">
+          <div class="empty-icon">→</div>
+          <p>Choose a scenario and submit a transfer to watch the saga progress.</p>
+        </div>
+        <div id="resultContent" hidden>
+          <div class="result-summary">
+            <div><span>Payment ID</span><strong id="paymentId">—</strong></div>
+            <div><span>HTTP status</span><strong id="httpStatus">—</strong></div>
+            <div><span>Attempts</span><strong id="attempts">—</strong></div>
+          </div>
+          <ol class="timeline" id="timeline"></ol>
+          <div class="reason" id="reason" hidden></div>
+        </div>
+      </section>
+    </section>
+
+    <section class="section comparison" id="comparison" hidden>
+      <div class="section-heading"><div><p class="eyebrow">Durable effect</p><h2>Before and after</h2></div></div>
+      <div class="comparison-grid" id="comparisonGrid"></div>
+    </section>
+
+    <section class="admin-section" id="adminSection" hidden>
+      <div class="section-heading">
+        <div><p class="eyebrow">Administrative view</p><h2>Integrity and event projection</h2></div>
+        <button class="button secondary" id="refreshAdmin" type="button">Refresh admin data</button>
+      </div>
+      <div class="admin-grid">
+        <article class="panel"><h3>Reconciliation</h3><div id="reconciliation"></div></article>
+        <article class="panel"><h3>Kafka-derived analytics</h3><div id="analytics"></div></article>
+      </div>
+    </section>
+
+    <section class="section inspector" aria-labelledby="inspectorTitle">
+      <div class="section-heading">
+        <div><p class="eyebrow">Developer view</p><h2 id="inspectorTitle">Request and response inspector</h2></div>
+        <button class="button secondary" id="clearInspector" type="button">Clear</button>
+      </div>
+      <div class="inspector-grid">
+        <div><h3>Request</h3><pre id="requestInspector">No request yet.</pre></div>
+        <div><h3>Response</h3><pre id="responseInspector">No response yet.</pre></div>
+      </div>
+    </section>
+  </main>
+
+  <footer><span>Banking Ledger Lite</span><span>Local demonstration only · simulated money</span></footer>
+  <script src="/app.js" defer></script>
+</body>
+</html>
