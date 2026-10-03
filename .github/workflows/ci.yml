@@ -15,6 +15,7 @@ jobs:
           node-version: '22'
       - run: python3 -m unittest discover -s scripts/tests -v
       - run: node --check frontend/app.js
+      - run: python3 scripts/init_env.py
       - run: docker compose --project-name banking-ledger-lite --file compose.yml config --quiet
       - run: mvn -B -ntp verify
       - run: python3 scripts/lite.py start

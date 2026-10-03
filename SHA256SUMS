@@ -1,7 +1,7 @@
 e598f3359dd6d8c0302790b4ca6459be382c6bb63ddf893692151645574694fe  ./.dockerignore
 a66396c1cd15454c20b58f303677fc1f8636a6c0b4553819d0b6222265e8fb6c  ./.env.example
 1e7d2fe31bab2054f9d76c02aae460ff5dcb89b862069317245096bffa204bc5  ./.gitattributes
-f8712a5f94f1a33e965209304613a168cec00c8f467b306579c6ba8663efe860  ./.github/workflows/ci.yml
+9a509c7e66873ca178fe1c401d22bbf6341bcc985ba7355cad767a13d4643246  ./.github/workflows/ci.yml
 2af50646106d4443f2f9d6120b590b1c5f6131bdfbea8455449edda62d731a87  ./.gitignore
 5d38d189e089044246e8ff7ef42c303954116fceb458b0e3568d88001bc3ba07  ./account-service/pom.xml
 3410fda773b80b89e93633f50d7aedf64bdc53c8f479ed817a1abc850c704706  ./account-service/src/main/java/dev/ajay/bank/account/AccountApplication.java
