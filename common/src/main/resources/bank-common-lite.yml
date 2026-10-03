@@ -1,4 +1,5 @@
-# Shared profile discovered from common.jar when SPRING_PROFILES_ACTIVE=lite.
+# Profile-specific variant of imported bank-common.yml.
+# Spring loads it when SPRING_PROFILES_ACTIVE=lite.
 # Normal service transaction and authorization logic is unchanged.
 server:
   tomcat:

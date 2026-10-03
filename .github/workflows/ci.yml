@@ -10,11 +10,16 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - run: python3 -m unittest discover -s scripts/tests -v
+      - run: node --check frontend/app.js
+      - run: docker compose --project-name banking-ledger-lite --file compose.yml config --quiet
       - run: mvn -B -ntp verify
       - run: python3 scripts/lite.py start
       - run: python3 scripts/lite.py test
-      - if: always()
+      - if: ${{ always() && hashFiles('.env') != '' }}
         run: python3 scripts/lite.py report
       - if: always()
         run: docker compose --project-name banking-ledger-lite logs --no-color > compose.log
@@ -26,5 +31,5 @@ jobs:
             **/target/surefire-reports/*
             compose.log
             lite-diagnostics.txt
-      - if: always()
+      - if: ${{ always() && hashFiles('.env') != '' }}
         run: python3 scripts/lite.py stop

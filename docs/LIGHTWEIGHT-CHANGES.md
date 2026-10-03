@@ -9,7 +9,7 @@ This variant targets a personal 8 GB Windows machine by reducing concurrency and
 3. The JVM gets an explicit 128 MiB heap rather than a percentage of a large container limit. Serial GC is suitable for trying small heaps with few CPUs; it is not claimed to outperform G1 for larger workloads.
 4. Kafka's broker heap and its health-check CLI heap are configured separately. Using only a broker heap setting can leave expensive probe JVMs consuming additional memory.
 5. PostgreSQL keeps durable commit settings. Its lower connection/shared-buffer budget fits the reduced application pools. Redis still persists its data, and a full rate-limit cache fails requests rather than evicting counters to weaken throttling.
-6. A builder container compiles the entire Maven reactor serially. It stops before application startup. Its 768 MiB limit and 384 MiB Maven heap are separate from the steady-state 3,248 MiB sum of base-container limits.
+6. A builder container compiles the entire Maven reactor serially. It stops before application startup. Its 768 MiB limit and 384 MiB Maven heap are separate from the steady-state 3,312 MiB sum of base-container limits after the UI was added.
 7. Runtime Docker image builds only copy already-built JARs. The launcher packages one image at a time and waits for each application's readiness endpoint during startup.
 8. Application readiness uses a small Bash HTTP check instead of another Java process. Docker terminates a stuck probe at its configured timeout.
 9. The Python launcher works with Windows `py`, Windows `python`, or Linux/macOS `python3`; subprocesses reuse the active interpreter. The optional batch file is a shortcut.
@@ -25,7 +25,7 @@ AWS/Kubernetes templates are retained as reference assets. They are not the lapt
 
 ## Memory interpretation
 
-6 × 384 + 256 + 640 + 48 = 3,248 MiB, or approximately 3.17 GiB of base-container memory limits. This arithmetic is not a measurement. The host needs additional memory for Windows, Docker/WSL and tools. The builder runs while this project's other containers are stopped. Image-building infrastructure and filesystem caches add their own overhead.
+6 × 384 + 256 + 640 + 48 + 64 = 3,312 MiB, or approximately 3.23 GiB of base-container memory limits. The final 64 MiB is the Nginx transaction simulator. This arithmetic is not a measurement. The host needs additional memory for Windows, Docker/WSL and tools. The builder runs while this project's other containers are stopped. Image-building infrastructure and filesystem caches add their own overhead.
 
 Do not reduce heaps arbitrarily if startup fails. First inspect `py scripts/lite.py report`, container logs, and Windows Task Manager. A container marked `oom=true` needs either more headroom, less work or a different architecture. An application exception can also be unrelated to memory.
 

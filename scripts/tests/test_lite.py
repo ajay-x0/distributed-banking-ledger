@@ -35,7 +35,7 @@ class LiteWorkflowTest(unittest.TestCase):
             lite.start(skip_build=True)
         calls = [c.args for c in compose.call_args_list]
         self.assertFalse(any(c[0] == 'build' or 'builder' in c for c in calls))
-        self.assertEqual(len([c for c in calls if c[0] == 'up']), 9)
+        self.assertEqual(len([c for c in calls if c[0] == 'up']), len(lite.ALL_SERVICES))
 
     def test_compose_is_scoped_to_lite_project(self):
         with patch.object(lite, 'run', return_value='') as run:

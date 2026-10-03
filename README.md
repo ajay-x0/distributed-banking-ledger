@@ -1,508 +1,188 @@
-# Distributed Banking Ledger & Payment System
+# Banking Ledger Lite — Java 21
 
-**Java 21 | Spring Boot | Microservices | PostgreSQL | Apache Kafka | Redis | Docker**
+A separate, lower-memory configuration of the Distributed Banking Ledger and Payment System, intended for testing on a Windows laptop with 8 GB RAM. It retains the six services, PostgreSQL, Kafka, Redis, durable payment saga, double-entry ledger and authorization logic. A lightweight browser-based transaction simulator now demonstrates input changes, saga outcomes, balances, reconciliation, and Kafka-derived analytics.
 
-A resource-optimized implementation of a distributed banking ledger and payment processing system, designed to demonstrate reliable financial transactions, event-driven microservices, and distributed systems concepts on a Windows laptop with 8 GB RAM.
+The nine-container backend baseline was smoke-tested on a Windows laptop with 8 GB installed RAM and 3.49 GiB reported to Docker. All backend containers became healthy, and the measured backend total after that smoke test was about 2.25 GiB. The later Nginx transaction simulator adds a tenth runtime container with a 64 MiB limit; it does not change the backend correctness path. The configured ten-container limits total 3,312 MiB (about 3.23 GiB), excluding Windows, Docker/WSL overhead and other applications. These are bounded functional observations, not a sustained-load benchmark or a guarantee for every 8 GB machine. Keep IntelliJ closed during the first build and test.
 
-The Lite configuration retains six backend services, PostgreSQL, Apache Kafka, and Redis, along with core banking functionality such as account management, payment processing, double-entry bookkeeping, fraud validation, transaction authorization, and distributed payment orchestration using the Saga pattern.
 
-The project is backend-focused and exposes REST APIs through an API Gateway. It does not currently include a graphical frontend. Banking operations can be performed through HTTP clients such as Postman, PowerShell, or automated API tests.
+## Application Demo
 
-## 1. Project Overview
+The browser-based transaction simulator sends authenticated requests through the API Gateway and displays payment state transitions, durable balance effects, fraud compensation, idempotency behavior, reconciliation results, and Kafka-derived analytics.
 
-The Distributed Banking Ledger and Payment System simulates the backend of a digital banking platform.
+![Banking Ledger transaction simulator](docs/screenshots/01-dashboard.png)
 
-It demonstrates how independent microservices coordinate to process payments while maintaining transaction consistency, preventing duplicate requests, recording financial activity, and recovering from certain failure scenarios.
+### Successful transfer
 
-### Core capabilities
+The following example shows an authenticated transfer progressing through the payment saga and reaching `COMPLETED`.
 
-* REST-based account management and payment processing.
-* Distributed payment orchestration using the Saga pattern.
-* Double-entry ledger for recording financial transactions.
-* PostgreSQL-backed transactional persistence.
-* Apache Kafka for asynchronous event-driven communication.
-* Redis for supporting distributed application operations.
-* Idempotency mechanisms to prevent duplicate payment processing.
-* Authentication, authorization, and account ownership validation.
-* Fraud validation and compensating transaction workflows.
-* Automated smoke tests and service health checks.
+![Successful transfer](docs/screenshots/02-successful-transfer.png)
 
-**Scope:** This is an educational backend system using simulated accounts and funds. It does not connect to real banks or payment networks.
+The ledger posts equal debit and credit entries and the interface displays the durable before-and-after balances.
 
-## 2. System Architecture
+![Successful balance effect](docs/screenshots/03-successful-balance-effect.png)
 
-The application follows a microservices architecture consisting of six backend services and three infrastructure components.
+### Failure and consistency scenarios
 
-### Backend services
+| Fraud rejection and compensation | Idempotency conflict |
+|---|---|
+| ![Fraud rejection](docs/screenshots/04-fraud-rejection.png) | ![Idempotency conflict](docs/screenshots/05-idempotency-conflict.png) |
 
-| Component            | Responsibility                                                                                     |
-| -------------------- | -------------------------------------------------------------------------------------------------- |
-| API Gateway          | Provides the entry point for client requests and routes supported API operations.                  |
-| Payment Service      | Coordinates payment processing, transaction state, idempotency, and distributed payment workflows. |
-| Account Service      | Manages account-related operations, balances, and account-level transaction controls.              |
-| Ledger Service       | Records financial activity using double-entry bookkeeping and maintains transaction records.       |
-| Fraud Service        | Performs fraud validation and supports transaction approval or rejection decisions.                |
-| Notification Service | Processes payment-related events and supports asynchronous notification workflows.                 |
+A payment above the configured fraud threshold is reserved, rejected and released without a final posted balance change. Reusing an idempotency key with changed transfer details produces HTTP `409 Conflict`.
 
-### Infrastructure components
+### Runtime verification
 
-| Technology     | Purpose                                                                         |
-| -------------- | ------------------------------------------------------------------------------- |
-| PostgreSQL     | Persistent storage for account, payment, ledger, and service-related data.      |
-| Apache Kafka   | Asynchronous messaging and event-driven communication between services.         |
-| Redis          | Supports low-latency operations and the distributed application infrastructure. |
-| Docker Compose | Builds, configures, starts, and manages the containerized application stack.    |
+All six Spring Boot services, PostgreSQL, Kafka, Redis and the Nginx transaction simulator run as ten Docker containers.
 
-### Payment processing workflow
+![Healthy Docker deployment](docs/screenshots/06-runtime-verification.png)
 
-A typical payment moves through the following logical stages:
+The end-to-end smoke test verifies transfer processing, duplicate requests, idempotency conflicts, authorization, fraud compensation, reconciliation, Kafka projection, UI hosting, proxying and demo authentication.
 
-1. A client submits an authenticated payment request through the API Gateway.
-2. The Payment Service validates the request and coordinates the payment workflow.
-3. Account ownership, account state, available funds, and fraud conditions are checked as required.
-4. The relevant account and ledger operations execute through the distributed payment workflow.
-5. Transaction records are persisted, and payment-related events are published for asynchronous processing.
-6. The payment reaches a terminal state after the required operations complete or the applicable compensation workflow finishes.
+![Smoke-test results](docs/screenshots/07-smoke-tests.png)
 
-The system uses the Saga pattern to coordinate distributed operations across services. Local database transactions, durable workflow state, and compensating actions help maintain consistency when an operation fails.
+### Reconciliation and analytics
 
-**Important:** A distributed Saga is not equivalent to a single ACID transaction spanning every microservice. Each service maintains its own transactional boundaries, while the workflow coordinates consistency across services.
+The administrator view reports double-entry ledger reconciliation results and Kafka-derived terminal payment metrics.
 
-## 3. Lite Configuration and Resource Requirements
+![Admin reconciliation and analytics](docs/screenshots/08-admin-reconciliation.png)
 
-The Lite variant was created to reduce the memory requirements of running multiple Java microservices and supporting infrastructure on an 8 GB Windows laptop.
 
-The application was smoke-tested on a Windows system with 8 GB installed RAM and approximately 3.49 GiB of memory reported to Docker.
+## Start on Windows
 
-During that validation, all nine base containers became healthy, and their combined measured memory consumption was approximately 2.25 GiB.
+Install Docker Desktop with Linux containers / WSL 2 and Python 3. A local JDK or Maven installation is not required for this workflow. The builder image includes Java 21 and Maven.
 
-These figures represent a specific local test, not sustained-load performance or a guarantee that the application will run successfully on every 8 GB machine.
+1. Extract this archive into a new folder, such as `C:\Projects\banking-ledger-lite`.
+2. Open Docker Desktop and wait for its engine to start.
+3. Stop the original full project if it is running: it also uses port 8080 and competes for RAM. The lite launcher deliberately manages only its own named project.
+4. Open PowerShell in this extracted folder and run:
 
-The configured base-container memory limits total 3,248 MiB (approximately 3.17 GiB). This excludes Windows, Docker Desktop, WSL overhead, and other applications.
-
-For the initial build, close memory-intensive applications such as IntelliJ IDEA.
-
-### Resource optimizations
-
-| Component                 | Lite configuration                                                                    |
-| ------------------------- | ------------------------------------------------------------------------------------- |
-| Java microservices        | Six services, each with a 384 MiB container limit                                     |
-| JVM heap                  | 32 MiB initial heap and 128 MiB maximum heap per Java service                         |
-| JVM tuning                | Serial GC, reduced code cache and direct-memory budgets, bounded processor count      |
-| Tomcat                    | 12 worker threads, 1 spare thread, 64 connections                                     |
-| Database connection pools | Maximum 3 connections per service, with 0 minimum idle connections                    |
-| PostgreSQL                | 256 MiB container limit, 32 MiB shared buffers, 30 connections                        |
-| Apache Kafka              | 640 MiB container limit, 128–256 MiB broker heap, reduced worker-thread configuration |
-| Redis                     | 48 MiB container limit, 16 MiB data limit, no eviction                                |
-| Build container           | 768 MiB limit, 384 MiB Maven heap, sequential module builds                           |
-| Startup                   | Sequential container startup with readiness checks                                    |
-| Observability             | Trace export and Prometheus export disabled; no dashboard or collector containers     |
-
-These optimizations reduce memory consumption but may also limit throughput and increase latency under load.
-
-The Lite variant is intended for local development, functional testing, and learning rather than production deployment or high-volume performance testing.
-
-## 4. Technology Stack
-
-**Backend:** Java 21, Spring Boot, Spring Security, Spring Data JPA, REST APIs
-
-**Databases and caching:** PostgreSQL, Redis
-
-**Messaging:** Apache Kafka
-
-**Build and deployment:** Maven, Docker, Docker Compose, Python 3
-
-**Testing and automation:** Automated API smoke tests, Java integration tests, service health checks, GitHub Actions
-
-**Engineering concepts:** Microservices, Saga pattern, idempotency, double-entry bookkeeping, database transactions, event-driven architecture, authorization, distributed consistency, and failure recovery.
-
-## 5. Prerequisites
-
-To run the Lite version on Windows, install:
-
-* Docker Desktop with Linux containers and WSL 2 support.
-* Python 3.
-* Git, if cloning the project directly from GitHub.
-
-A local JDK or Maven installation is not required for the documented Docker-based build workflow. The dedicated builder image includes Java 21 and Maven.
-
-Ensure Docker Desktop is running before starting the application.
-
-## 6. Installation and Startup
-
-Clone the repository:
-
-```bash
-git clone https://github.com/ajay-x0/distributed-banking-ledger.git
-```
-
-Navigate to the project directory:
-
-```bash
-cd distributed-banking-ledger
-```
-
-Open PowerShell in the project directory.
-
-Check Docker availability and its reported memory:
-
-```bash
-py scripts/lite.py check
-```
-
-Build and start the application:
-
-```bash
+```powershell
 py scripts/lite.py start
 ```
 
-Alternatively, use the provided Windows launcher:
+Alternatively run `.\start-lite.bat`. If your Python command is `python`, use that instead of `py`. On Linux/macOS use `python3 scripts/lite.py start`.
 
-```powershell
-.\start-lite.bat
-```
+The launcher creates a local `.env`, validates Compose, stops any running containers belonging to this lite project, prepares the Kafka volume for the official image's non-root user, builds all Java modules sequentially in one 768 MiB builder container, packages six Java runtime images plus the Nginx UI, and starts the ten base containers one at a time. Each container must pass its health/readiness check before the launcher starts the next. Existing data volumes are preserved. It will stop on a build or readiness failure rather than print a false success.
 
-If Python is installed under the `python` command instead of `py`, substitute that command.
-
-On Linux or macOS:
-
-```bash
-python3 scripts/lite.py start
-```
-
-### What happens during startup?
-
-The Lite launcher performs the following operations:
-
-1. Creates the local environment configuration.
-2. Validates the Docker Compose configuration.
-3. Stops existing containers belonging to the Lite project.
-4. Prepares the Kafka data volume for the official image's non-root user.
-5. Builds the Java modules sequentially using a memory-limited builder container.
-6. Packages the six Java runtime images.
-7. Starts the nine base containers sequentially.
-8. Waits for the configured health or readiness checks before proceeding.
-
-Existing data volumes are preserved during normal startup.
-
-The first build may require downloading Docker images, Java dependencies, and Maven artifacts. Maven dependencies are cached for subsequent builds.
-
-Do not use `docker compose up --build` for the initial build. The Lite workflow uses a dedicated builder to generate the JAR files required by the runtime images.
-
-**Note:** The Lite configuration uses port 8080, which is also used by the original full project. Stop the full project before starting the Lite stack.
-
-## 7. Verify the Running System
-
-Check the current container status:
-
-```bash
-py scripts/lite.py status
-```
-
-Run the automated end-to-end smoke test:
-
-```bash
-py scripts/lite.py test
-```
-
-The expected successful smoke-test summary is:
+When startup completes, open the transaction simulator:
 
 ```text
-PASS: transfer, duplicate, conflict, authorization,
-fraud compensation, reconciliation, Kafka projection
+http://localhost:3000
 ```
 
-### What does the smoke test verify?
+The raw API remains available at `http://localhost:8080`.
 
-The smoke test executes predefined checks against the running banking system.
+The first run requires image and dependency downloads and can be slow. The Maven cache is persisted across builds. Do not use `docker compose up --build` for the first run: runtime images expect JARs created by the dedicated builder.
 
-These checks cover the following scenarios:
+## Verify the running system
 
-| Test scenario      | Purpose                                                                            |
-| ------------------ | ---------------------------------------------------------------------------------- |
-| Transfer           | Verifies the tested payment transfer workflow.                                     |
-| Duplicate          | Checks idempotent handling of repeated payment requests.                           |
-| Conflict           | Checks the response when an idempotency key is reused with different request data. |
-| Authorization      | Checks selected authentication or authorization restrictions.                      |
-| Fraud compensation | Tests the configured fraud-related compensation scenario.                          |
-| Reconciliation     | Checks consistency between the tested financial records.                           |
-| Kafka projection   | Verifies the tested asynchronous event-processing workflow.                        |
-
-A successful result means that the specific assertions implemented in the smoke test passed.
-
-It does not imply that every possible payment scenario, failure condition, concurrency issue, or production workload has been tested.
-
-For hands-on verification, individual banking operations can also be performed manually using the REST APIs.
-
-### Check resource consumption
-
-```bash
+```powershell
+py scripts/lite.py test
 py scripts/lite.py stats
 ```
 
-This command displays container memory usage, CPU utilization, and process counts.
-
-Check Windows Task Manager as well, because container-level memory measurements do not include the complete memory consumption of Windows, Docker Desktop, WSL, and other applications.
-
-## 8. Manually Execute a Banking Transaction
-
-The application exposes its backend API through:
+Expected smoke-test output:
 
 ```text
-http://localhost:8080
+PASS: transfer, duplicate, conflict, authorization, fraud compensation, reconciliation, Kafka projection
+PASS: UI hosting, proxy, demo authentication, authenticated balance
 ```
 
-This address is an API entry point, not a web application.
+`stats` shows actual container memory, CPU and process counts on your device. Also inspect total memory in Windows Task Manager: container memory alone does not tell you whether the host is swapping.
 
-There is currently no graphical frontend or public signup endpoint.
+If startup fails or a service restarts:
 
-### Demo accounts
-
-The system includes three seeded accounts with simulated balances.
-
-| Account | Initial balance | Account ID suffix |
-| ------- | --------------: | ----------------- |
-| alice   |        ₹100,000 | 0001              |
-| bob     |        ₹100,000 | 0002              |
-| charlie |        ₹100,000 | 0003              |
-
-Payment amounts are represented in minor currency units.
-
-For INR:
-
-```text
-₹1 = 100 paise
-
-₹10,000 = 1,000,000 paise
+```powershell
+py scripts/lite.py status
+py scripts/lite.py report
+py scripts/lite.py logs ledger
 ```
 
-The default demonstration fraud rule allows transfers up to ₹20,000.
+`report` writes `lite-diagnostics.txt` with container status, restart counts, OOM indicators and memory readings. It does not dump environment credentials. Share that report and the relevant error when troubleshooting. The report is ignored by Git.
 
-### Example: Transfer ₹10,000 from Alice to Bob
+## Daily commands
 
-The following PowerShell example demonstrates how to submit a payment request using the existing backend APIs.
+| Action | Command |
+| --- | --- |
+| Check Docker and its reported VM memory | `py scripts/lite.py check` |
+| Build/rebuild and start | `py scripts/lite.py start` |
+| Restart using already-built images | `py scripts/lite.py start --skip-build` |
+| Run the end-to-end smoke test | `py scripts/lite.py test` |
+| Check actual memory | `py scripts/lite.py stats` |
+| Check container status | `py scripts/lite.py status` |
+| Save a diagnostic snapshot | `py scripts/lite.py report` |
+| Inspect recent logs | `py scripts/lite.py logs payment` |
+| Stop this stack, keeping data | `py scripts/lite.py stop` |
 
-Generate a demonstration authentication token:
+`start` intentionally stops the lite stack before building, so the compiler does not compete with the running services. It can interrupt a test session; payment state and data are retained for recovery. Use `--skip-build` only when the images already exist and your code has not changed.
+
+## Resource changes
+
+| Component | Lightweight setting |
+| --- | --- |
+| Each Java service | 384 MiB container limit; 32 MiB initial / 128 MiB maximum Java heap |
+| Six Java services together | 2,304 MiB combined container limits |
+| Transaction simulator | 64 MiB Nginx container; static HTML/CSS/JavaScript |
+| JVM | Serial GC, smaller code cache/direct-memory budget, bounded processor count |
+| Tomcat | 12 worker threads; 1 spare thread; 64 connections |
+| Database connection pools | At most 3 connections per service, 0 minimum idle |
+| PostgreSQL | 256 MiB container limit; 32 MiB shared buffers; 30 connections |
+| Kafka | 640 MiB container limit; 128–256 MiB broker heap; fewer worker threads |
+| Redis | 48 MiB container limit; 16 MiB data limit, no eviction |
+| Builder | 768 MiB container limit; 384 MiB Maven heap; modules built sequentially |
+| Startup | One service at a time, with readiness checks |
+| Observability | Trace export and Prometheus export disabled; no dashboard/collector containers |
+
+The Java heap is only part of each process's memory; class metadata, stacks, native libraries and direct buffers need headroom. Health checks also consume resources. Kafka's command-line health probe has its own small heap settings so it does not start with an unnecessarily large default heap.
+
+No PostgreSQL durability setting (`fsync`, `synchronous_commit`, `full_page_writes`) was disabled. Kafka still uses `acks=all` and producer idempotence; the consumer still commits after its database work. The bank's balance locks, journal constraints, ownership checks, outbox/inbox and saga transitions are unchanged. The single-node local infrastructure still provides no high-availability guarantee.
+
+Smaller pools and heaps reduce throughput and increase latency under load. This variant is for small learning workloads. Do not load-test it while expecting the same response times as a larger deployment.
+
+## API example
+
+The gateway is at `http://localhost:8080`. The local transaction simulator is at `http://localhost:3000`. It uses a demo-only identity switcher, not a public signup or production authentication system.
+
+Accounts are seeded with simulated money: `alice`, `bob`, `charlie`, each with Rs 100,000. Their account IDs end in `0001`, `0002`, and `0003`, respectively. Rs 10,000 is `1000000` paise. The default demo fraud rule allows transfers up to Rs 20,000.
+
+PowerShell:
 
 ```powershell
 $token = py scripts/token.py alice
-```
-
-Prepare the HTTP request headers:
-
-```powershell
 $headers = @{
     Authorization = "Bearer $token"
     "Idempotency-Key" = [guid]::NewGuid().ToString()
 }
-```
-
-Prepare the payment request:
-
-```powershell
 $body = @{
     source = "00000000-0000-0000-0000-000000000001"
     destination = "00000000-0000-0000-0000-000000000002"
     amountMinor = 1000000
     currency = "INR"
 } | ConvertTo-Json
-```
-
-Submit the payment:
-
-```powershell
-$payment = Invoke-RestMethod `
-    -Uri "http://localhost:8080/api/payments" `
-    -Method Post `
-    -Headers $headers `
-    -ContentType "application/json" `
-    -Body $body
-
+$payment = Invoke-RestMethod -Uri "http://localhost:8080/api/payments" -Method Post -Headers $headers -ContentType "application/json" -Body $body
 $payment
+Invoke-RestMethod -Uri "http://localhost:8080/api/payments/$($payment.id)" -Headers @{ Authorization = "Bearer $token" }
 ```
 
-Retrieve the payment status:
+Repeat the status request after a few seconds to see the terminal result. Reusing the same idempotency key with the same input returns the same payment. Different input with that key returns 409. The smoke test spends simulated funds; repeated tests eventually need funds transferred back or a deliberately fresh demo environment.
 
-```powershell
-Invoke-RestMethod `
-    -Uri "http://localhost:8080/api/payments/$($payment.id)" `
-    -Headers @{ Authorization = "Bearer $token" }
-```
+## Files and tests
 
-Because the application uses distributed and asynchronous processing, the initial payment response may not represent the final transaction state.
+- `docs/LIGHTWEIGHT-CHANGES.md`: technical differences and tradeoffs.
+- `docs/VALIDATION.md`: checks performed for this variant and unverified gates.
+- `docs/PROJECT-DESCRIPTION.md`: architecture and concept-to-code mapping.
+- `docs/API.md`: internal service contracts.
+- `docs/FAILURE-LAB.md`: outage and recovery exercises.
+- `docs/FRONTEND-INTEGRATION.md`: UI architecture, integration steps, scenarios, and troubleshooting.
+- `.github/workflows/ci.yml`: full Java integration tests, lite startup and smoke test.
 
-Repeat the payment status request as needed to inspect the completed workflow.
+Application source is unchanged except for an added test of profile loading. Runtime tuning is isolated to `bank-common-lite.yml`, Compose, Dockerfile and launch/build scripts. The original downloadable archive remains a separate project.
 
-### Idempotency verification
+The source code archive is small, but the build still downloads Java, Maven, infrastructure images and dependencies. This reduces memory demand; it does not eliminate the disk requirements of a Java microservices project.
 
-The payment API uses an idempotency key to identify repeated requests.
+## GitHub
 
-* Repeating the same payment request with the same idempotency key returns the existing payment instead of creating another payment.
-* Reusing the same key with different payment data returns an HTTP 409 Conflict response.
+Upload the extracted source folder, not the generated `.env`, `build/`, `target/` directories or diagnostic report. `.gitignore` covers these. `.gitattributes` preserves LF endings for the shell scripts when checked out on Windows. Use a separate repository or branch for this lite variant so the two configurations remain easy to compare.
 
-This mechanism helps protect the system against duplicate payment processing caused by repeated client requests.
+The Docker project name is `banking-ledger-lite`, with separate volumes from the original `banking-ledger` project. Both use local port 8080. The launcher does not migrate the original database or stop unrelated projects.
 
-**Note:** All funds are simulated. The smoke tests can modify the seeded account balances, so repeated test execution may require restoring funds or starting with a fresh demonstration environment.
-
-## 9. Observability and Monitoring
-
-The original distributed banking architecture includes observability concepts involving OpenTelemetry, Prometheus, and Grafana.
-
-These technologies serve different purposes:
-
-| Technology    | Purpose                                                                     |
-| ------------- | --------------------------------------------------------------------------- |
-| OpenTelemetry | Provides application instrumentation and telemetry collection capabilities. |
-| Prometheus    | Collects and stores time-series metrics from instrumented services.         |
-| Grafana       | Visualizes collected metrics through monitoring dashboards.                 |
-
-In a larger deployment, monitoring can help identify service failures, API latency, increased error rates, JVM memory pressure, and other operational problems.
-
-### Monitoring in the Lite configuration
-
-To reduce memory consumption, the Lite configuration disables trace export and Prometheus export and does not start dashboard or telemetry collector containers.
-
-Grafana dashboards are therefore not part of the documented Lite startup or validation workflow.
-
-The Lite configuration instead relies on Docker health checks, container statistics, application logs, and automated smoke tests for local operational verification.
-
-## 10. Troubleshooting and Diagnostics
-
-If startup fails or a service repeatedly restarts, inspect the running containers:
-
-```bash
-py scripts/lite.py status
-```
-
-Generate a diagnostic report:
-
-```bash
-py scripts/lite.py report
-```
-
-Inspect service logs:
-
-```bash
-py scripts/lite.py logs ledger
-```
-
-To inspect another service, replace `ledger` with the appropriate service name.
-
-The diagnostic report is saved as:
-
-```text
-lite-diagnostics.txt
-```
-
-It contains container status, restart counts, out-of-memory indicators, and resource measurements.
-
-The report does not intentionally dump environment credentials and is excluded from Git through `.gitignore`.
-
-### Common troubleshooting areas
-
-**Insufficient Docker memory:** Close unnecessary applications, check available system memory, and review Docker's reported resource limits.
-
-**Port 8080 already in use:** Stop the original banking project or another application using the same port.
-
-**Kafka startup or permission failure:** Inspect Kafka logs and the ownership of its persistent data volume. The Lite launcher includes volume-permission preparation for the official Kafka image.
-
-**Service readiness failure:** Inspect the affected service's logs and dependency health before attempting another startup.
-
-## 11. Daily Development Commands
-
-| Action                                          | Command                                 |
-| ----------------------------------------------- | --------------------------------------- |
-| Check Docker configuration and available memory | `py scripts/lite.py check`              |
-| Build or rebuild and start the application      | `py scripts/lite.py start`              |
-| Start using existing images                     | `py scripts/lite.py start --skip-build` |
-| Run automated smoke tests                       | `py scripts/lite.py test`               |
-| View container resource consumption             | `py scripts/lite.py stats`              |
-| Check container status                          | `py scripts/lite.py status`             |
-| Generate a diagnostic report                    | `py scripts/lite.py report`             |
-| Inspect payment service logs                    | `py scripts/lite.py logs payment`       |
-| Stop the application while retaining data       | `py scripts/lite.py stop`               |
-
-The `start` command intentionally stops the Lite stack before rebuilding so that compilation does not compete with the running services for memory.
-
-Use `--skip-build` only when the required images already exist and the application code has not changed.
-
-Stopping the stack preserves its persistent data volumes during normal operation.
-
-## 12. Data Integrity and Reliability
-
-The Lite configuration reduces resource consumption without intentionally removing the project's core transaction-safety mechanisms.
-
-The following PostgreSQL durability settings remain enabled:
-
-* `fsync`
-* `synchronous_commit`
-* `full_page_writes`
-
-Kafka retains the configured producer acknowledgment and idempotence mechanisms, including `acks=all`.
-
-The banking workflow retains its account balance locking, ledger constraints, authorization checks, outbox/inbox processing, and Saga state transitions.
-
-These mechanisms address different reliability concerns, including concurrent balance modifications, duplicate requests, distributed transaction coordination, and failure recovery.
-
-However, the local deployment uses single-node infrastructure and does not provide production-grade high availability.
-
-The system is intended for learning, experimentation, and functional validation using simulated banking data.
-
-## 13. Project Documentation
-
-Additional technical documentation is available in the repository.
-
-| File                          | Description                                                                          |
-| ----------------------------- | ------------------------------------------------------------------------------------ |
-| `docs/LIGHTWEIGHT-CHANGES.md` | Resource optimizations and differences between the Lite and original configurations. |
-| `docs/VALIDATION.md`          | Validation procedures, completed checks, and remaining verification requirements.    |
-| `docs/PROJECT-DESCRIPTION.md` | System architecture, engineering concepts, and concept-to-code mapping.              |
-| `docs/API.md`                 | Internal service contracts and API documentation.                                    |
-| `docs/FAILURE-LAB.md`         | Failure scenarios, outage simulation, and recovery exercises.                        |
-| `.github/workflows/ci.yml`    | Automated CI workflow covering Java tests, Lite startup, and smoke testing.          |
-
-The Lite configuration isolates most resource-related changes within its dedicated application profile, Docker Compose configuration, Dockerfiles, and launcher/build scripts.
-
-Application-level business logic is retained from the original system.
-
-## 14. CI/CD
-
-The repository includes a GitHub Actions workflow for automated validation.
-
-The workflow is configured to run Java tests, start the Lite environment, and execute the banking smoke test.
-
-The CI pipeline helps detect build failures, application startup problems, and regressions covered by the implemented tests.
-
-A successful workflow indicates that the configured checks passed for that particular run. It does not replace production performance testing, security assessment, or comprehensive failure testing.
-
-## 15. Repository and Development Notes
-
-The Lite configuration uses the Docker Compose project name:
-
-```text
-banking-ledger-lite
-```
-
-Its containers and persistent volumes are separate from those of the original `banking-ledger` project.
-
-Both configurations use local port 8080 and should not be started simultaneously without changing their port configuration.
-
-The Lite launcher does not migrate data from the original project's database or stop unrelated Docker projects.
-
-When publishing the repository, exclude local environment files, generated build artifacts, compiled JARs, and diagnostic reports.
-
-The repository's `.gitignore` covers these generated files.
-
-The source code archive is relatively small, but the first build requires additional disk space for Docker images, Maven dependencies, and supporting infrastructure.
-
-## 16. Project Scope and Future Enhancements
-
-The current implementation focuses on backend engineering, distributed payment processing, transaction consistency, and resource-efficient local deployment.
-
-Potential future enhancements include a React-based banking dashboard, browser-based account and transaction management, expanded automated test coverage, and a dedicated observability deployment using Prometheus and Grafana.
-
-Additional load testing, resilience testing, and deployment hardening would be required before considering any production-style use.
-
----
-
-**Disclaimer:** This project is intended for educational and demonstration purposes. All accounts, balances, and transactions use simulated funds. It is not a production banking platform and does not process real financial transactions.
+For a first upload, follow `GITHUB-UPLOAD.md`. The repository intentionally has no open-source license file; add a license only after choosing the terms under which you want other people to use the code.
